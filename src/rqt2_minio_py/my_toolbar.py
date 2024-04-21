@@ -4,6 +4,7 @@ from botocore.exceptions import ClientError
 import os
 
 from python_qt_binding.QtWidgets import QToolBar
+from python_qt_binding.QtWidgets import QAbstractItemView
 from python_qt_binding.QtWidgets import QAction
 from python_qt_binding.QtWidgets import QComboBox
 from python_qt_binding.QtWidgets import QDialog
@@ -53,7 +54,8 @@ class MyDialog2(QDialog):
         super(MyDialog2, self).__init__(parent)
         self.setWindowTitle('Select Objects')
 
-        self.listWidget = QListWidget()
+        self.list = QListWidget()
+        self.list.setSelectionMode(QAbstractItemView.ContiguousSelection)
 
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok
                                     | QDialogButtonBox.Cancel)
@@ -62,7 +64,7 @@ class MyDialog2(QDialog):
         self.buttonBox.rejected.connect(self.reject)
 
         layout = QVBoxLayout()
-        layout.addWidget(self.listWidget)
+        layout.addWidget(self.list)
         layout.addWidget(self.buttonBox)
         layout.addStretch()
         self.setLayout(layout)
@@ -140,26 +142,25 @@ class MyToolBar(QToolBar):
         text, ok = QInputDialog().getText(self, "Create Bucket",
             "Bucket name:", QLineEdit.Normal,
             QDir().home().dirName())
-        
+
         if ok and text:
             bucket_name = text
-
-            try:
-                self.s3_client.create_bucket(Bucket=bucket_name)
-                print('Bucket: ', bucket_name, ' has been created.')
-                self.list_buckets()
-                self.bucketCombo.setCurrentText(bucket_name)
-
-            except ClientError as e:
-                logging.error(e)
-                return False
-            return True
+            if bucket_name:
+                try:
+                    response = self.s3_client.create_bucket(Bucket=bucket_name)
+                    print('Bucket:', bucket_name, 'has been created.')
+                    self.list_buckets()
+                    self.bucketCombo.setCurrentText(bucket_name)
+                except ClientError as e:
+                    logging.error(e)
+                    return False
+                return True
 
     def delete_bucket(self):
         bucket_name = self.bucketCombo.currentText()
         if bucket_name:
-            self.s3_client.delete_bucket(Bucket=bucket_name)
-            print('Bucket: ', bucket_name, ' has been deleted.')
+            response = self.s3_client.delete_bucket(Bucket=bucket_name)
+            print('Bucket:', bucket_name, 'has been deleted.')
             self.list_buckets()
 
     def list_buckets(self):
@@ -184,16 +185,21 @@ class MyToolBar(QToolBar):
                 for file_name in file_names:
                     object_name = os.path.basename(file_name)
                     if file_name and object_name:
-                        self.s3_client.upload_file(Filename=file_name, Bucket=bucket_name, Key=object_name)
-                        print('Object: ', object_name, ' has been uploaded from ', bucket_name, '.')
-                        self.list_objects()
+                        try:
+                            response = self.s3_client.upload_file(Filename=file_name, Bucket=bucket_name, Key=object_name)
+                            print('Object:', object_name, 'has been uploaded from', bucket_name, '.')
+                            self.list_objects()
+                        except ClientError as e:
+                            logging.error(e)
+                            return False
+                        return True
 
     def delete_object(self):
         bucket_name = self.bucketCombo.currentText()
         object_name = self.objectCombo.currentText()
         if bucket_name and object_name:
-            self.s3_client.delete_object(Bucket=bucket_name, Key=object_name)
-            print('Object: ', object_name, ' has been deleted from ', bucket_name, " .")
+            response = self.s3_client.delete_object(Bucket=bucket_name, Key=object_name)
+            print('Object:', object_name, 'has been deleted from', bucket_name, ".")
             self.list_objects()
 
     def get_object(self):
@@ -201,10 +207,10 @@ class MyToolBar(QToolBar):
         if bucket_name:
             dialog = MyDialog2(self)
             for i in range(self.objectCombo.count()):
-                dialog.listWidget.addItem(self.objectCombo.itemText(i))
+                dialog.list.addItem(self.objectCombo.itemText(i))
 
             if dialog.exec_():
-                selected_items = dialog.listWidget.selectedItems()
+                selected_items = dialog.list.selectedItems()
 
                 if len(selected_items) > 0:
                     dialog2 = QFileDialog(self)
@@ -220,19 +226,13 @@ class MyToolBar(QToolBar):
                                     object_name = selected_item.text()
                                     file_name = dir_name + '/' + object_name
                                     self.s3_client.download_file(Bucket=bucket_name, Key=object_name, Filename=file_name)
-                                    print('Object: ', object_name, ' has been downloaded from ', bucket_name, '.')
+                                    print('Object:', object_name, 'has been downloaded from', bucket_name, '.')
 
     def list_objects(self):
         bucket_name = self.bucketCombo.currentText()
         if bucket_name:
-            try:
-                resource = self.s3_resource.Bucket(bucket_name)
-                self.objectCombo.clear()
-                for summary in resource.objects.all():
-                    self.objectCombo.addItem(summary.key)
-                    print(summary.key)
-
-            except ClientError as e:
-                logging.error(e)
-                return False
-            return True
+            resource = self.s3_resource.Bucket(bucket_name)
+            self.objectCombo.clear()
+            for summary in resource.objects.all():
+                self.objectCombo.addItem(summary.key)
+                print(summary.key)
