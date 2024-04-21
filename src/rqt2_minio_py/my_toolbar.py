@@ -12,6 +12,7 @@ from python_qt_binding.QtWidgets import QFileDialog
 from python_qt_binding.QtWidgets import QFormLayout
 from python_qt_binding.QtWidgets import QInputDialog
 from python_qt_binding.QtWidgets import QLineEdit
+from python_qt_binding.QtWidgets import QListWidget
 from python_qt_binding.QtWidgets import QVBoxLayout
 from python_qt_binding.QtCore import QDir
 from python_qt_binding.QtGui import QIcon
@@ -29,19 +30,39 @@ class MyDialog(QDialog):
         self.line3 = QLineEdit()
         self.line3.setText('minioadmin')
 
+        formLayout = QFormLayout()
+        formLayout.addRow('Endpoint url:', self.line1)
+        formLayout.addRow('Access key:', self.line2)
+        formLayout.addRow('Secret key:', self.line3)
+
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok
                                     | QDialogButtonBox.Cancel)
 
         self.buttonBox.accepted.connect(self.accept)
         self.buttonBox.rejected.connect(self.reject)
 
-        formLayout = QFormLayout()
-        formLayout.addRow('Endpoint url:', self.line1)
-        formLayout.addRow('Access key:', self.line2)
-        formLayout.addRow('Secret key:', self.line3)
-
         layout = QVBoxLayout()
         layout.addLayout(formLayout)
+        layout.addWidget(self.buttonBox)
+        layout.addStretch()
+        self.setLayout(layout)
+
+class MyDialog2(QDialog):
+
+    def __init__(self, parent=None):
+        super(MyDialog2, self).__init__(parent)
+        self.setWindowTitle('Select Objects')
+
+        self.listWidget = QListWidget()
+
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok
+                                    | QDialogButtonBox.Cancel)
+
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.listWidget)
         layout.addWidget(self.buttonBox)
         layout.addStretch()
         self.setLayout(layout)
@@ -54,24 +75,24 @@ class MyToolBar(QToolBar):
         credIcon = QIcon.fromTheme('preferences-system-network')
         self.actionCred = QAction(credIcon, '&Cred')
         self.actionCred.setStatusTip('Input a cred')
-        self.actionCred.triggered.connect(self.cred)
+        self.actionCred.triggered.connect(self.create_cred)
         self.addAction(self.actionCred)
 
         self.bucketCombo = QComboBox()
         self.bucketCombo.setStatusTip('Select a bucket')
-        self.bucketCombo.currentTextChanged.connect(self.listObjects)
+        self.bucketCombo.currentTextChanged.connect(self.list_objects)
         self.addWidget(self.bucketCombo)
 
         createIcon = QIcon.fromTheme('list-add')
         self.actionCreate = QAction(createIcon, '&Create')
         self.actionCreate.setStatusTip('Create a bucket')
-        self.actionCreate.triggered.connect(self.createBucket)
+        self.actionCreate.triggered.connect(self.create_bucket)
         self.addAction(self.actionCreate)
 
         deleteIcon = QIcon.fromTheme('list-remove')
         self.actionDelete = QAction(deleteIcon, '&Delete')
         self.actionDelete.setStatusTip('Delete the bucket')
-        self.actionDelete.triggered.connect(self.deleteBucket)
+        self.actionDelete.triggered.connect(self.delete_bucket)
         self.addAction(self.actionDelete)
         self.addSeparator()
 
@@ -82,22 +103,22 @@ class MyToolBar(QToolBar):
         putIcon = QIcon.fromTheme('list-add')
         self.actionPut = QAction(putIcon, '&Upload')
         self.actionPut.setStatusTip('Upload a object')
-        self.actionPut.triggered.connect(self.putObject)
+        self.actionPut.triggered.connect(self.put_object)
         self.addAction(self.actionPut)
 
         delete2Icon = QIcon.fromTheme('list-remove')
         self.actionDelete2 = QAction(delete2Icon, '&Delete')
         self.actionDelete2.setStatusTip('Delete the object')
-        self.actionDelete2.triggered.connect(self.deleteObject)
+        self.actionDelete2.triggered.connect(self.delete_object)
         self.addAction(self.actionDelete2)
 
         getIcon = QIcon.fromTheme('document-save-as')
         self.actionGet = QAction(getIcon, '&Download')
         self.actionGet.setStatusTip('Download the object')
-        self.actionGet.triggered.connect(self.getObject)
+        self.actionGet.triggered.connect(self.get_object)
         self.addAction(self.actionGet)
 
-    def cred(self):
+    def create_cred(self):
         dialog = MyDialog(self)
 
         if dialog.exec_():
@@ -113,9 +134,9 @@ class MyToolBar(QToolBar):
 
                 print('S3 client has been created.')
                 print(endpoint_url, access_key, secret_key)
-                self.listBuckets()
+                self.list_buckets()
 
-    def createBucket(self):
+    def create_bucket(self):
         text, ok = QInputDialog().getText(self, "Create Bucket",
             "Bucket name:", QLineEdit.Normal,
             QDir().home().dirName())
@@ -126,7 +147,7 @@ class MyToolBar(QToolBar):
             try:
                 self.s3_client.create_bucket(Bucket=bucket_name)
                 print('Bucket: ', bucket_name, ' has been created.')
-                self.listBuckets()
+                self.list_buckets()
                 self.bucketCombo.setCurrentText(bucket_name)
 
             except ClientError as e:
@@ -134,14 +155,14 @@ class MyToolBar(QToolBar):
                 return False
             return True
 
-    def deleteBucket(self):
+    def delete_bucket(self):
         bucket_name = self.bucketCombo.currentText()
         if bucket_name:
             self.s3_client.delete_bucket(Bucket=bucket_name)
             print('Bucket: ', bucket_name, ' has been deleted.')
-            self.listBuckets()
+            self.list_buckets()
 
-    def listBuckets(self):
+    def list_buckets(self):
         response = self.s3_client.list_buckets()
 
         print('Existing buckets:')
@@ -150,7 +171,7 @@ class MyToolBar(QToolBar):
             self.bucketCombo.addItem(bucket["Name"])
             print(f'  {bucket["Name"]}')
 
-    def putObject(self):
+    def put_object(self):
         bucket_name = self.bucketCombo.currentText()
         if bucket_name:
             dialog = QFileDialog(self)
@@ -161,38 +182,47 @@ class MyToolBar(QToolBar):
             if dialog.exec_():
                 file_names = dialog.selectedFiles()
                 for file_name in file_names:
-                    object_key = os.path.basename(file_name)
-                    if file_name and object_key:
-                        self.s3_client.upload_file(Filename=file_name, Bucket=bucket_name, Key=object_key)
-                        print('Object: ', object_key, ' has been uploaded from ', bucket_name, ' .')
-                        self.listObjects()
+                    object_name = os.path.basename(file_name)
+                    if file_name and object_name:
+                        self.s3_client.upload_file(Filename=file_name, Bucket=bucket_name, Key=object_name)
+                        print('Object: ', object_name, ' has been uploaded from ', bucket_name, '.')
+                        self.list_objects()
 
-    def deleteObject(self):
+    def delete_object(self):
         bucket_name = self.bucketCombo.currentText()
-        object_key = self.objectCombo.currentText()
-        if bucket_name and object_key:
-            self.s3_client.delete_object(Bucket=bucket_name, Key=object_key)
-            print('Object: ', object_key, ' has been deleted from ', bucket_name, " .")
-            self.listObjects()
+        object_name = self.objectCombo.currentText()
+        if bucket_name and object_name:
+            self.s3_client.delete_object(Bucket=bucket_name, Key=object_name)
+            print('Object: ', object_name, ' has been deleted from ', bucket_name, " .")
+            self.list_objects()
 
-    def getObject(self):
+    def get_object(self):
         bucket_name = self.bucketCombo.currentText()
-        object_key = self.objectCombo.currentText()
-        if bucket_name and object_key:
-            dialog = QFileDialog(self)
-            dialog.setFileMode(QFileDialog.AnyFile)
-            # dialog.setNameFilter("Images (*.png *.xpm *.jpg)")
-            dialog.setViewMode(QFileDialog.Detail)
-            dialog.setAcceptMode(QFileDialog.AcceptSave)
+        if bucket_name:
+            dialog = MyDialog2(self)
+            for i in range(self.objectCombo.count()):
+                dialog.listWidget.addItem(self.objectCombo.itemText(i))
 
             if dialog.exec_():
-                file_names = dialog.selectedFiles()
-                for file_name in file_names:
-                    if file_name:
-                        self.s3_client.download_file(Bucket=bucket_name, Key=object_key, Filename=file_name)
-                        print('Object: ', object_key, ' has been downloaded from ', bucket_name, ' .')
+                selected_items = dialog.listWidget.selectedItems()
 
-    def listObjects(self):
+                if len(selected_items) > 0:
+                    dialog2 = QFileDialog(self)
+                    dialog2.setFileMode(QFileDialog.Directory)
+                    # dialog2.setNameFilter("Images (*.png *.xpm *.jpg)")
+                    dialog2.setViewMode(QFileDialog.Detail)
+
+                    if dialog2.exec_():
+                        dir_names = dialog2.selectedFiles()
+                        for dir_name in dir_names:
+                            if dir_name:
+                                for selected_item in selected_items:
+                                    object_name = selected_item.text()
+                                    file_name = dir_name + '/' + object_name
+                                    self.s3_client.download_file(Bucket=bucket_name, Key=object_name, Filename=file_name)
+                                    print('Object: ', object_name, ' has been downloaded from ', bucket_name, '.')
+
+    def list_objects(self):
         bucket_name = self.bucketCombo.currentText()
         if bucket_name:
             try:
