@@ -12,6 +12,8 @@ find_package(pluginlib REQUIRED)
 find_package(rclpy REQUIRED)
 find_package(std_msgs REQUIRED)
 
+pluginlib_export_plugin_description_file(rqt_gui plugin.xml)
+
 ament_python_install_package(${PROJECT_NAME}
     PACKAGE_DIR src/${PROJECT_NAME})
 
