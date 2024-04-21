@@ -16,6 +16,7 @@ from python_qt_binding.QtWidgets import QLineEdit
 from python_qt_binding.QtWidgets import QListWidget
 from python_qt_binding.QtWidgets import QVBoxLayout
 from python_qt_binding.QtCore import QDir
+from python_qt_binding.QtCore import Signal
 from python_qt_binding.QtGui import QIcon
 
 class MyDialog(QDialog):
@@ -168,9 +169,12 @@ class MyToolBar(QToolBar):
 
         print('Existing buckets:')
         self.bucketCombo.clear()
+        bucket_names = []
         for bucket in response['Buckets']:
             self.bucketCombo.addItem(bucket["Name"])
+            bucket_names.append(bucket["Name"])
             print(f'  {bucket["Name"]}')
+        self.bucketListed.emit(bucket_names)
 
     def put_object(self):
         bucket_name = self.bucketCombo.currentText()
@@ -233,6 +237,13 @@ class MyToolBar(QToolBar):
         if bucket_name:
             resource = self.s3_resource.Bucket(bucket_name)
             self.objectCombo.clear()
+            object_names = []
             for summary in resource.objects.all():
                 self.objectCombo.addItem(summary.key)
+                object_names.append(summary.key)
                 print(summary.key)
+            self.objectListed.emit(object_names)
+
+    bucketListed = Signal(list)
+
+    objectListed = Signal(list)
