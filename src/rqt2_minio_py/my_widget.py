@@ -18,8 +18,10 @@ class MyWidget(QWidget):
 
         self.list1 = QListWidget()
         self.list1.setSelectionMode(QAbstractItemView.ContiguousSelection)
+        self.list1.currentTextChanged.connect(self.select_bucket)
 
         self.list2 = QListWidget()
+        self.list2.currentTextChanged.connect(self.select_object)
         self.list2.setSelectionMode(QAbstractItemView.ContiguousSelection)
 
         layout2 = QVBoxLayout()
@@ -38,15 +40,21 @@ class MyWidget(QWidget):
 
         layout = QVBoxLayout()
         layout.addWidget(self.bar)
-        layout.addWidget(self.group1)
-        layout.addWidget(self.group2)
+        # layout.addWidget(self.group1)
+        # layout.addWidget(self.group2)
         layout.addStretch()
         self.setLayout(layout)
 
-    def list_buckets(self, Buckets):
+    def list_buckets(self, bucket_names):
         self.list1.clear()
-        self.list1.addItems(Buckets)
+        self.list1.addItems(bucket_names)
 
-    def list_objects(self, Keys):
+    def list_objects(self, object_names):
         self.list2.clear()
-        self.list2.addItems(Keys)
+        self.list2.addItems(object_names)
+
+    def select_bucket(self, currentText):
+        self.bar.bucketCombo.setCurrentText(currentText)
+
+    def select_object(self, currentText):
+        self.bar.objectCombo.setCurrentText(currentText)

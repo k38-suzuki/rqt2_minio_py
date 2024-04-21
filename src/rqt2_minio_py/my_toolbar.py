@@ -160,6 +160,10 @@ class MyToolBar(QToolBar):
     def delete_bucket(self):
         bucket_name = self.bucketCombo.currentText()
         if bucket_name:
+            self.delete_selected_bucket(bucket_name)
+    
+    def delete_selected_bucket(self, bucket_name):
+        if bucket_name:
             response = self.s3_client.delete_bucket(Bucket=bucket_name)
             print('Bucket:', bucket_name, 'has been deleted.')
             self.list_buckets()
@@ -199,8 +203,12 @@ class MyToolBar(QToolBar):
                         return True
 
     def delete_object(self):
-        bucket_name = self.bucketCombo.currentText()
         object_name = self.objectCombo.currentText()
+        if object_name:
+            self.delete_selected_object(object_name)
+
+    def delete_selected_object(self, object_name):
+        bucket_name = self.bucketCombo.currentText()
         if bucket_name and object_name:
             response = self.s3_client.delete_object(Bucket=bucket_name, Key=object_name)
             print('Object:', object_name, 'has been deleted from', bucket_name, ".")
@@ -217,20 +225,16 @@ class MyToolBar(QToolBar):
                 selected_items = dialog.list.selectedItems()
 
                 if len(selected_items) > 0:
-                    dialog2 = QFileDialog(self)
-                    dialog2.setFileMode(QFileDialog.Directory)
-                    # dialog2.setNameFilter("Images (*.png *.xpm *.jpg)")
-                    dialog2.setViewMode(QFileDialog.Detail)
-
-                    if dialog2.exec_():
-                        dir_names = dialog2.selectedFiles()
-                        for dir_name in dir_names:
-                            if dir_name:
-                                for selected_item in selected_items:
-                                    object_name = selected_item.text()
-                                    file_name = dir_name + '/' + object_name
-                                    self.s3_client.download_file(Bucket=bucket_name, Key=object_name, Filename=file_name)
-                                    print('Object:', object_name, 'has been downloaded from', bucket_name, '.')
+                    dir = QFileDialog.getExistingDirectory(self, "Open Directory",
+                                                        QDir().home().dirName(),
+                                                        QFileDialog.ShowDirsOnly
+                                                        | QFileDialog.DontResolveSymlinks)
+                    if dir:
+                        for selected_item in selected_items:
+                            object_name = selected_item.text()
+                            file_name = dir + '/' + object_name
+                            self.s3_client.download_file(Bucket=bucket_name, Key=object_name, Filename=file_name)
+                            print('Object:', object_name, 'has been downloaded from', bucket_name, '.')
 
     def list_objects(self):
         bucket_name = self.bucketCombo.currentText()
