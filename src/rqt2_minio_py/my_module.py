@@ -6,7 +6,7 @@ from qt_gui.plugin import Plugin
 from python_qt_binding import loadUi
 from python_qt_binding.QtWidgets import QWidget
 
-from rqt2_minio_py.my_widget import MyWidget
+from rqt2_minio_py.mainwindow import MainWindow
 
 class MyPlugin(Plugin):
 
@@ -16,8 +16,8 @@ class MyPlugin(Plugin):
         self.setObjectName('MyPlugin')
 
         # Create QWidget
-        self._widget = MyWidget()
-        self._widget.setWindowTitle('Minio Client')
+        self._widget = MainWindow()
+
         if context.serial_number() > 1:
             self._widget.setWindowTitle(self._widget.windowTitle() + (' (%d)' % context.serial_number()))
         # Add widget to the user interface
