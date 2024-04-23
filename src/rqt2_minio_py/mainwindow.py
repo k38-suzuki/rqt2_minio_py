@@ -17,6 +17,8 @@ from python_qt_binding.QtWidgets import QListWidget
 from python_qt_binding.QtWidgets import QListWidgetItem
 from python_qt_binding.QtWidgets import QMenu
 from python_qt_binding.QtWidgets import QToolBar
+from python_qt_binding.QtWidgets import QTreeWidget
+from python_qt_binding.QtWidgets import QTreeWidgetItem
 from python_qt_binding.QtWidgets import QVBoxLayout
 from python_qt_binding.QtWidgets import QWidget
 from python_qt_binding.QtCore import QDir
@@ -55,6 +57,31 @@ class MyDialog(QDialog):
         self.setLayout(layout)
         self.setWindowTitle('Create Cred')
 
+class MyDialog2(QDialog):
+
+    def __init__(self, parent=None):
+        super(MyDialog2, self).__init__(parent)
+
+        list1 = []
+        list1.append('Info')
+        list1.append('Value')
+
+        self.tree = QTreeWidget()
+        self.tree.setHeaderLabels(list1)
+
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok)
+
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.tree)
+        layout.addWidget(self.buttonBox)
+        # layout.addStretch()
+
+        self.setLayout(layout)
+        self.setWindowTitle('Object Info')
+
 class MainWindow(QMainWindow):
 
     def __init__(self, parent=None):
@@ -69,7 +96,7 @@ class MainWindow(QMainWindow):
         # self.list1.setSelectionMode(QAbstractItemView.ContiguousSelection)
         self.list1.currentTextChanged.connect(self.listObjects)
         self.list1.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.list1.customContextMenuRequested.connect(self.contextMenu1)
+        # self.list1.customContextMenuRequested.connect(self.contextMenu1)
 
         self.list2 = QListWidget()
         # self.list2.setSelectionMode(QAbstractItemView.ContiguousSelection)
@@ -78,11 +105,11 @@ class MainWindow(QMainWindow):
 
         layout1 = QVBoxLayout()
         layout1.addWidget(self.list1)
-        layout1.addStretch()
+        # layout1.addStretch()
 
         layout2 = QVBoxLayout()
         layout2.addWidget(self.list2)
-        layout2.addStretch()
+        # layout2.addStretch()
 
         self.group1 = QGroupBox('Buckets')
         self.group1.setLayout(layout1)   
@@ -93,7 +120,7 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout()
         layout.addWidget(self.group1)
         layout.addWidget(self.group2)
-        layout.addStretch()
+        # layout.addStretch()
 
         centralWidget = QWidget(self)
         centralWidget.setLayout(layout)
@@ -341,26 +368,62 @@ class MainWindow(QMainWindow):
             item.setCheckState(Qt.Unchecked)
 
     def contextMenu1(self, pos):
-        menu = QMenu()
-        infoIcon = QIcon.fromTheme('dialog-information')
-        actionInfo = QAction(infoIcon, '&Info')
-        actionInfo.triggered.connect(self.showBucketInfo)
-        menu.addAction(actionInfo)
-        menu.exec_(self.list1.mapToGlobal(pos))
+        item = self.list1.currentItem()
+        if item:
+            menu = QMenu()
+            infoIcon = QIcon.fromTheme('dialog-information')
+            actionInfo = QAction(infoIcon, '&Info')
+            actionInfo.triggered.connect(self.showBucketInfo)
+            menu.addAction(actionInfo)
+            menu.exec_(self.list1.mapToGlobal(pos))
 
     def contextMenu2(self, pos):
-        menu = QMenu()
-        infoIcon = QIcon.fromTheme('dialog-information')
-        actionInfo = QAction(infoIcon, '&Info')
-        actionInfo.triggered.connect(self.showObjectInfo)
-        menu.addAction(actionInfo)
-        menu.exec_(self.list2.mapToGlobal(pos))
+        item = self.list2.currentItem()
+        if item:
+            menu = QMenu()
+            infoIcon = QIcon.fromTheme('dialog-information')
+            actionInfo = QAction(infoIcon, '&Info')
+            actionInfo.triggered.connect(self.showObjectInfo)
+            menu.addAction(actionInfo)
+            menu.exec_(self.list2.mapToGlobal(pos))
     
     def showBucketInfo(self):
         print('bucket info')
     
     def showObjectInfo(self):
-        print('object info')
+        bucket_name = self.list1.currentItem().text()
+        object_name = self.list2.currentItem().text()
+
+        response = self.s3_client.head_object(Bucket=bucket_name, Key=object_name)
+
+        text1 = str(response['ContentLength'])
+        text2 = response['ContentType']
+        text3 = response['ETag']
+        text4 = response['LastModified'].strftime('%Y/%m/%d %H:%M:%S.%f')
+
+        dialog = MyDialog2(self)
+        item1 = QTreeWidgetItem()
+        item1.setText(0, 'ContentLength [bytes]')
+        item1.setText(1, text1)
+        dialog.tree.addTopLevelItem(item1)
+
+        item2 = QTreeWidgetItem()
+        item2.setText(0, 'ContentType')
+        item2.setText(1, text2)
+        dialog.tree.addTopLevelItem(item2)
+
+        item3 = QTreeWidgetItem()
+        item3.setText(0, 'ETag')
+        item3.setText(1, text3)
+        dialog.tree.addTopLevelItem(item3)
+
+        item4 = QTreeWidgetItem()
+        item4.setText(0, 'LastModified')
+        item4.setText(1, text4)
+        dialog.tree.addTopLevelItem(item4)
+
+        if dialog.exec_():
+            print(response)
 
     bucketListed = Signal(list)
 
