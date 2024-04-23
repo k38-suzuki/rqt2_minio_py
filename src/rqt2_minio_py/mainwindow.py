@@ -67,10 +67,14 @@ class MainWindow(QMainWindow):
 
         self.list1 = QListWidget()
         # self.list1.setSelectionMode(QAbstractItemView.ContiguousSelection)
-        self.list1.currentTextChanged.connect(self.list_objects)
+        self.list1.currentTextChanged.connect(self.listObjects)
+        self.list1.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list1.customContextMenuRequested.connect(self.contextMenu1)
 
         self.list2 = QListWidget()
         # self.list2.setSelectionMode(QAbstractItemView.ContiguousSelection)
+        self.list2.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list2.customContextMenuRequested.connect(self.contextMenu2)
 
         layout1 = QVBoxLayout()
         layout1.addWidget(self.list1)
@@ -96,51 +100,79 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(centralWidget)
 
     def createActions(self):
-        credIcon = QIcon.fromTheme('preferences-system-network')
+        credIcon = QIcon.fromTheme('contact-new')
         self.actionCred = QAction(credIcon, '&Cred')
         self.actionCred.setStatusTip('Input a cred')
-        self.actionCred.triggered.connect(self.create_cred)
+        self.actionCred.triggered.connect(self.createCred)
 
         createIcon = QIcon.fromTheme('list-add')
         self.actionCreate = QAction(createIcon, '&Create')
         self.actionCreate.setStatusTip('Create a bucket')
-        self.actionCreate.triggered.connect(self.create_bucket)
+        self.actionCreate.triggered.connect(self.createBucket)
 
         deleteIcon = QIcon.fromTheme('list-remove')
-        self.actionDelete = QAction(deleteIcon, '&Delete')
-        self.actionDelete.setStatusTip('Delete the checked bucket')
-        self.actionDelete.triggered.connect(self.delete_bucket)
+        self.actionDelete1 = QAction(deleteIcon, '&Delete')
+        self.actionDelete1.setStatusTip('Delete the checked bucket')
+        self.actionDelete1.triggered.connect(self.deleteBucket)
 
-        putIcon = QIcon.fromTheme('list-add')
+        putIcon = QIcon.fromTheme('document-send')
         self.actionPut = QAction(putIcon, '&Upload')
         self.actionPut.setStatusTip('Upload a object')
-        self.actionPut.triggered.connect(self.put_object)
+        self.actionPut.triggered.connect(self.putObject)
 
-        delete2Icon = QIcon.fromTheme('list-remove')
+        delete2Icon = QIcon.fromTheme('user-trash')
         self.actionDelete2 = QAction(delete2Icon, '&Delete')
         self.actionDelete2.setStatusTip('Delete the checked object')
-        self.actionDelete2.triggered.connect(self.delete_object)
+        self.actionDelete2.triggered.connect(self.deleteObject)
 
-        getIcon = QIcon.fromTheme('document-save-as')
+        getIcon = QIcon.fromTheme('document-save')
         self.actionGet = QAction(getIcon, '&Download')
         self.actionGet.setStatusTip('Download the checked object')
-        self.actionGet.triggered.connect(self.get_object)
+        self.actionGet.triggered.connect(self.getObject)
+
+        self.actionCheckAll1 = QAction('&Check all')
+        self.actionCheckAll1.setStatusTip('Check all buckets')
+        self.actionCheckAll1.triggered.connect(self.checkAllBuckets)
+
+        self.actionCheckAll2 = QAction('&Check all')
+        self.actionCheckAll2.setStatusTip('Check all objects')
+        self.actionCheckAll2.triggered.connect(self.checkAllObjects)
+
+        self.actionUncheckAll1 = QAction('&Uncheck all')
+        self.actionUncheckAll1.setStatusTip('Uncheck all buckets')
+        self.actionUncheckAll1.triggered.connect(self.uncheckAllBuckets)
+
+        self.actionUncheckAll2 = QAction('&Uncheck all')
+        self.actionUncheckAll2.setStatusTip('Uncheck all objects')
+        self.actionUncheckAll2.triggered.connect(self.uncheckAllObjects)
 
     def createMenus(self):
         fileMenu = self.menuBar().addMenu("&File")
         fileMenu.addAction(self.actionCreate)
+        fileMenu.addAction(self.actionDelete1)
         fileMenu.addSeparator()
 
         fileMenu.addAction(self.actionPut)
         fileMenu.addAction(self.actionGet)
         fileMenu.addSeparator()
 
-        fileMenu.addAction(self.actionCred)
-        fileMenu.addSeparator()
-    
+        bucketMenu = self.menuBar().addMenu("&Bucket")
+        bucketMenu.addAction(self.actionCheckAll1)
+        bucketMenu.addAction(self.actionUncheckAll1)
+        bucketMenu.addSeparator()
+
+        objectMenu = self.menuBar().addMenu("&Object")
+        objectMenu.addAction(self.actionCheckAll2)
+        objectMenu.addAction(self.actionUncheckAll2)
+        objectMenu.addSeparator()
+
     def createToolBars(self):
         fileToolBar = self.addToolBar("File")
-        fileToolBar.addAction(self.actionDelete)
+        fileToolBar.addAction(self.actionCred)
+        fileToolBar.addSeparator()
+
+        fileToolBar.addAction(self.actionPut)
+        fileToolBar.addAction(self.actionGet)
         fileToolBar.addSeparator()
 
         fileToolBar.addAction(self.actionDelete2)
@@ -149,7 +181,7 @@ class MainWindow(QMainWindow):
         fileToolBar.setAllowedAreas(Qt.TopToolBarArea | Qt.BottomToolBarArea)
         self.addToolBar(Qt.TopToolBarArea, fileToolBar)
 
-    def create_cred(self):
+    def createCred(self):
         dialog = MyDialog(self)
 
         if dialog.exec_():
@@ -165,9 +197,9 @@ class MainWindow(QMainWindow):
 
                 print('S3 client has been created.')
                 print(endpoint_url, access_key, secret_key)
-                self.list_buckets()
+                self.listBuckets()
 
-    def create_bucket(self):
+    def createBucket(self):
         text, ok = QInputDialog().getText(self, "Create Bucket",
             "Bucket name:", QLineEdit.Normal,
             QDir().home().dirName())
@@ -178,13 +210,13 @@ class MainWindow(QMainWindow):
             try:
                 response = self.s3_client.create_bucket(Bucket=bucket_name)
                 print('Bucket:', bucket_name, 'has been created.')
-                self.list_buckets()
+                self.listBuckets()
             except ClientError as e:
                 logging.error(e)
                 return False
             return True
 
-    def delete_bucket(self):
+    def deleteBucket(self):
         for i in range(self.list1.count()):
             item = self.list1.item(i)
             if item.checkState() == Qt.Checked:
@@ -192,9 +224,9 @@ class MainWindow(QMainWindow):
 
                 response = self.s3_client.delete_bucket(Bucket=bucket_name)
                 print('Bucket:', bucket_name, 'has been deleted.')
-                self.list_buckets()
+                self.listBuckets()
 
-    def list_buckets(self):
+    def listBuckets(self):
         response = self.s3_client.list_buckets()
 
         print('Existing buckets:')
@@ -210,7 +242,17 @@ class MainWindow(QMainWindow):
             print(f'  {bucket["Name"]}')
         self.bucketListed.emit(bucket_names)
 
-    def put_object(self):
+    def checkAllBuckets(self):
+        for i in range(self.list1.count()):
+            item = self.list1.item(i)
+            item.setCheckState(Qt.Checked)
+
+    def uncheckAllBuckets(self):
+        for i in range(self.list1.count()):
+            item = self.list1.item(i)
+            item.setCheckState(Qt.Unchecked)
+
+    def putObject(self):
         item = self.list1.currentItem()
         if item:
             bucket_name = item.text()
@@ -228,13 +270,13 @@ class MainWindow(QMainWindow):
                         try:
                             response = self.s3_client.upload_file(Filename=file_name, Bucket=bucket_name, Key=object_name)
                             print('Object:', object_name, 'has been uploaded from', bucket_name, '.')
-                            self.list_objects()
+                            self.listObjects()
                         except ClientError as e:
                             logging.error(e)
                             return False
                         return True
 
-    def delete_object(self):
+    def deleteObject(self):
         item1 = self.list1.currentItem()
         if item1:
             bucket_name = item1.text()
@@ -246,9 +288,9 @@ class MainWindow(QMainWindow):
 
                     response = self.s3_client.delete_object(Bucket=bucket_name, Key=object_name)
                     print('Object:', object_name, 'has been deleted from', bucket_name, ".")
-                    self.list_objects()
+                    self.listObjects()
 
-    def get_object(self):
+    def getObject(self):
         item1 = self.list1.currentItem()
         if item1:
             bucket_name = item1.text()
@@ -270,7 +312,7 @@ class MainWindow(QMainWindow):
                         self.s3_client.download_file(Bucket=bucket_name, Key=object_name, Filename=file_name)
                         print('Object:', object_name, 'has been downloaded from', bucket_name, '.')
 
-    def list_objects(self):
+    def listObjects(self):
         item = self.list1.currentItem()
         if item:
             bucket_name = item.text()
@@ -287,6 +329,38 @@ class MainWindow(QMainWindow):
                 object_names.append(summary.key)
                 print(summary.key)
             self.objectListed.emit(object_names)
+
+    def checkAllObjects(self):
+        for i in range(self.list2.count()):
+            item = self.list2.item(i)
+            item.setCheckState(Qt.Checked)
+
+    def uncheckAllObjects(self):
+        for i in range(self.list2.count()):
+            item = self.list2.item(i)
+            item.setCheckState(Qt.Unchecked)
+
+    def contextMenu1(self, pos):
+        menu = QMenu()
+        infoIcon = QIcon.fromTheme('dialog-information')
+        actionInfo = QAction(infoIcon, '&Info')
+        actionInfo.triggered.connect(self.showBucketInfo)
+        menu.addAction(actionInfo)
+        menu.exec_(self.list1.mapToGlobal(pos))
+
+    def contextMenu2(self, pos):
+        menu = QMenu()
+        infoIcon = QIcon.fromTheme('dialog-information')
+        actionInfo = QAction(infoIcon, '&Info')
+        actionInfo.triggered.connect(self.showObjectInfo)
+        menu.addAction(actionInfo)
+        menu.exec_(self.list2.mapToGlobal(pos))
+    
+    def showBucketInfo(self):
+        print('bucket info')
+    
+    def showObjectInfo(self):
+        print('object info')
 
     bucketListed = Signal(list)
 
