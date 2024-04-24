@@ -10,8 +10,10 @@ from python_qt_binding.QtWidgets import QDialog
 from python_qt_binding.QtWidgets import QDialogButtonBox
 from python_qt_binding.QtWidgets import QFileDialog
 from python_qt_binding.QtWidgets import QFormLayout
+from python_qt_binding.QtWidgets import QGridLayout
 from python_qt_binding.QtWidgets import QGroupBox
 from python_qt_binding.QtWidgets import QInputDialog
+from python_qt_binding.QtWidgets import QLabel
 from python_qt_binding.QtWidgets import QLineEdit
 from python_qt_binding.QtWidgets import QListWidget
 from python_qt_binding.QtWidgets import QListWidgetItem
@@ -72,7 +74,6 @@ class MyDialog2(QDialog):
         self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok)
 
         self.buttonBox.accepted.connect(self.accept)
-        self.buttonBox.rejected.connect(self.reject)
 
         layout = QVBoxLayout()
         layout.addWidget(self.tree)
@@ -81,6 +82,39 @@ class MyDialog2(QDialog):
 
         self.setLayout(layout)
         self.setWindowTitle('Object Info')
+
+class MyDialog3(QDialog):
+
+    def __init__(self, parent=None):
+        super(MyDialog3, self).__init__(parent)
+
+        self.lines1 = []
+        self.lines2 = []
+
+        gridLayout = QGridLayout()
+        for i in range(10):
+            line1 = QLineEdit()
+            line2 = QLineEdit()
+            gridLayout.addWidget(QLabel("Key" + str(i)), i, 0)
+            gridLayout.addWidget(line1, i, 1)
+            gridLayout.addWidget(QLabel("Value" + str(i)), i, 2)
+            gridLayout.addWidget(line2, i, 3)
+            self.lines1.append(line1)
+            self.lines2.append(line2)
+        
+        self.buttonBox = QDialogButtonBox(QDialogButtonBox.Ok
+                                    | QDialogButtonBox.Cancel)
+
+        self.buttonBox.accepted.connect(self.accept)
+        self.buttonBox.rejected.connect(self.reject)
+
+        layout = QVBoxLayout()
+        layout.addLayout(gridLayout)
+        layout.addWidget(self.buttonBox)
+        # layout.addStretch()
+
+        self.setLayout(layout)
+        self.setWindowTitle('Put Object')
 
 class MainWindow(QMainWindow):
 
@@ -137,8 +171,8 @@ class MainWindow(QMainWindow):
         self.actionCreate.setStatusTip('Create a bucket')
         self.actionCreate.triggered.connect(self.createBucket)
 
-        deleteIcon = QIcon.fromTheme('list-remove')
-        self.actionDelete1 = QAction(deleteIcon, '&Delete')
+        delete1Icon = QIcon.fromTheme('list-remove')
+        self.actionDelete1 = QAction(delete1Icon, '&Delete')
         self.actionDelete1.setStatusTip('Delete the checked bucket')
         self.actionDelete1.triggered.connect(self.deleteBucket)
 
@@ -146,6 +180,11 @@ class MainWindow(QMainWindow):
         self.actionPut = QAction(putIcon, '&Upload')
         self.actionPut.setStatusTip('Upload a object')
         self.actionPut.triggered.connect(self.putObject)
+
+        taggingIcon = QIcon.fromTheme('dialog-information')
+        self.actionTagging = QAction(taggingIcon, '&Tagging')
+        self.actionTagging.setStatusTip('Put a object tagging')
+        self.actionTagging.triggered.connect(self.putObjectTagging)
 
         delete2Icon = QIcon.fromTheme('user-trash')
         self.actionDelete2 = QAction(delete2Icon, '&Delete')
@@ -199,6 +238,7 @@ class MainWindow(QMainWindow):
         fileToolBar.addSeparator()
 
         fileToolBar.addAction(self.actionPut)
+        fileToolBar.addAction(self.actionTagging)
         fileToolBar.addAction(self.actionGet)
         fileToolBar.addSeparator()
 
@@ -303,6 +343,34 @@ class MainWindow(QMainWindow):
                             return False
                         return True
 
+    def putObjectTagging(self):
+        item1 = self.list1.currentItem()
+        if item1:
+            bucket_name = item1.text()
+
+            dialog = MyDialog3(self)
+
+            if dialog.exec_():
+                for i in range(self.list2.count()):
+                    item2 = self.list2.item(i)
+                    if item2.checkState() == Qt.Checked:
+                        object_name = item2.text()
+
+                        tagging = {}
+                        tagset = []
+                        tagging['TagSet'] = tagset
+                        for j in range(10):
+                            text1 = dialog.lines1[j].text()
+                            text2 = dialog.lines2[j].text()
+                            if text1 and text2:
+                                tag = {}
+                                tag['Key'] = text1
+                                tag['Value'] = text2
+                                tagset.append(tag)
+                        
+                        response = self.s3_client.put_object_tagging(Bucket=bucket_name, Key=object_name, Tagging=tagging)
+                        print('Object:', object_name, 'has been updated.')
+
     def deleteObject(self):
         item1 = self.list1.currentItem()
         if item1:
@@ -371,7 +439,7 @@ class MainWindow(QMainWindow):
         item = self.list1.currentItem()
         if item:
             menu = QMenu()
-            infoIcon = QIcon.fromTheme('dialog-information')
+            infoIcon = QIcon.fromTheme('document-properties')
             actionInfo = QAction(infoIcon, '&Info')
             actionInfo.triggered.connect(self.showBucketInfo)
             menu.addAction(actionInfo)
@@ -395,6 +463,7 @@ class MainWindow(QMainWindow):
         object_name = self.list2.currentItem().text()
 
         response = self.s3_client.head_object(Bucket=bucket_name, Key=object_name)
+        response2 = self.s3_client.get_object_tagging(Bucket=bucket_name, Key=object_name)
 
         text1 = str(response['ContentLength'])
         text2 = response['ContentType']
@@ -422,8 +491,17 @@ class MainWindow(QMainWindow):
         item4.setText(1, text4)
         dialog.tree.addTopLevelItem(item4)
 
+        tagset = response2['TagSet']
+        for tag in tagset:
+            key = tag['Key']
+            value = tag['Value']
+            item = QTreeWidgetItem()
+            item.setText(0, 'Key:' + key)
+            item.setText(1, value)
+            dialog.tree.addTopLevelItem(item)
+
         if dialog.exec_():
-            print(response)
+            print('Close the info dialog')
 
     bucketListed = Signal(list)
 
