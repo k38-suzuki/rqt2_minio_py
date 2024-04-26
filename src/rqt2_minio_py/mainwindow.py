@@ -6,6 +6,7 @@ import os
 from python_qt_binding.QtWidgets import QMainWindow
 from python_qt_binding.QtWidgets import QAbstractItemView
 from python_qt_binding.QtWidgets import QAction
+from python_qt_binding.QtWidgets import QCheckBox
 from python_qt_binding.QtWidgets import QDialog
 from python_qt_binding.QtWidgets import QDialogButtonBox
 from python_qt_binding.QtWidgets import QFileDialog
@@ -127,6 +128,12 @@ class MainWindow(QMainWindow):
         self.createMenus()
         self.createToolBars()
 
+        self.check1 = QCheckBox()
+        self.check1.toggled.connect(self.checkAllBuckets)
+
+        self.check2 = QCheckBox()
+        self.check2.toggled.connect(self.checkAllObjects)
+
         self.line1 = QLineEdit()
         self.line1.setPlaceholderText('Filter Buckets')
         self.line1.textChanged.connect(self.filterBuckets)
@@ -139,14 +146,17 @@ class MainWindow(QMainWindow):
         # self.list1.setSelectionMode(QAbstractItemView.ContiguousSelection)
         self.list1.currentTextChanged.connect(self.listObjects)
         self.list1.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list1.itemClicked.connect(self.checkBucket)
         # self.list1.customContextMenuRequested.connect(self.contextMenu1)
 
         self.list2 = QListWidget()
         # self.list2.setSelectionMode(QAbstractItemView.ContiguousSelection)
         self.list2.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.list2.itemClicked.connect(self.checkObject)
         self.list2.customContextMenuRequested.connect(self.contextMenu2)
 
         layout1 = QHBoxLayout()
+        layout1.addWidget(self.check1)
         layout1.addWidget(self.line1)
         layout1.addWidget(self.bucketToolBar)
 
@@ -156,6 +166,7 @@ class MainWindow(QMainWindow):
         # layout2.addStretch()
 
         layout3 = QHBoxLayout()
+        layout3.addWidget(self.check2)
         layout3.addWidget(self.line2)
         layout3.addWidget(self.objectToolBar)
 
@@ -215,22 +226,6 @@ class MainWindow(QMainWindow):
         self.actionGet.setStatusTip('Download the checked object')
         self.actionGet.triggered.connect(self.getObject)
 
-        self.actionCheckAll1 = QAction('&Check all')
-        self.actionCheckAll1.setStatusTip('Check all buckets')
-        self.actionCheckAll1.triggered.connect(self.checkAllBuckets)
-
-        self.actionCheckAll2 = QAction('&Check all')
-        self.actionCheckAll2.setStatusTip('Check all objects')
-        self.actionCheckAll2.triggered.connect(self.checkAllObjects)
-
-        self.actionUncheckAll1 = QAction('&Uncheck all')
-        self.actionUncheckAll1.setStatusTip('Uncheck all buckets')
-        self.actionUncheckAll1.triggered.connect(self.uncheckAllBuckets)
-
-        self.actionUncheckAll2 = QAction('&Uncheck all')
-        self.actionUncheckAll2.setStatusTip('Uncheck all objects')
-        self.actionUncheckAll2.triggered.connect(self.uncheckAllObjects)
-
     def createMenus(self):
         fileMenu = self.menuBar().addMenu("&File")
         fileMenu.addAction(self.actionCreate)
@@ -240,16 +235,6 @@ class MainWindow(QMainWindow):
         fileMenu.addAction(self.actionPut)
         fileMenu.addAction(self.actionGet)
         fileMenu.addSeparator()
-
-        bucketMenu = self.menuBar().addMenu("&Bucket")
-        bucketMenu.addAction(self.actionCheckAll1)
-        bucketMenu.addAction(self.actionUncheckAll1)
-        bucketMenu.addSeparator()
-
-        objectMenu = self.menuBar().addMenu("&Object")
-        objectMenu.addAction(self.actionCheckAll2)
-        objectMenu.addAction(self.actionUncheckAll2)
-        objectMenu.addSeparator()
 
     def createToolBars(self):
         fileToolBar = self.addToolBar("File")
@@ -334,15 +319,13 @@ class MainWindow(QMainWindow):
             print(f'  {bucket["Name"]}')
         self.bucketListed.emit(bucket_names)
 
-    def checkAllBuckets(self):
+    def checkAllBuckets(self, checked):
         for i in range(self.list1.count()):
             item = self.list1.item(i)
-            item.setCheckState(Qt.Checked)
-
-    def uncheckAllBuckets(self):
-        for i in range(self.list1.count()):
-            item = self.list1.item(i)
-            item.setCheckState(Qt.Unchecked)
+            if checked:
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
 
     def putObject(self):
         item = self.list1.currentItem()
@@ -464,15 +447,13 @@ class MainWindow(QMainWindow):
                 print(object_name)
             self.objectListed.emit(object_names)
 
-    def checkAllObjects(self):
+    def checkAllObjects(self, checked):
         for i in range(self.list2.count()):
             item = self.list2.item(i)
-            item.setCheckState(Qt.Checked)
-
-    def uncheckAllObjects(self):
-        for i in range(self.list2.count()):
-            item = self.list2.item(i)
-            item.setCheckState(Qt.Unchecked)
+            if checked:
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
 
     def contextMenu1(self, pos):
         item = self.list1.currentItem()
@@ -582,6 +563,56 @@ class MainWindow(QMainWindow):
                 self.list2.addItem(item)
                 self.list2.setCurrentItem(item)
             print('Filtered objects:', object_names)
+
+    def checkBucket(self, item):
+        if item.checkState() == Qt.Checked:
+            print(item.text(), 'is checked.')
+        elif item.checkState() == Qt.Unchecked:
+            self.check1.blockSignals(True)
+            self.check1.setChecked(False)
+            self.check1.blockSignals(False)
+
+        count1 = self.list1.count()
+        count2 = 0
+        for i in range(self.list1.count()):
+            item = self.list1.item(i)
+            if item.checkState() == Qt.Checked:
+                count2 += 1
+
+        if count1 == count2:
+            self.check1.setChecked(True)
+
+        # if count2 > 1:
+        #     self.statusBar().showMessage(str(count2) + 'buckets are checked.')
+        # elif count2 == 1:
+        #     self.statusBar().showMessage(str(count2) + 'bucket is checked.')
+        # elif count2 == 0:
+        #     self.statusBar().showMessage('No buckets are checked.')
+
+    def checkObject(self, item):
+        if item.checkState() == Qt.Checked:
+            print(item.text(), 'is checked.')
+        elif item.checkState() == Qt.Unchecked:
+            self.check2.blockSignals(True)
+            self.check2.setChecked(False)
+            self.check2.blockSignals(False)
+
+        count1 = self.list2.count()
+        count2 = 0
+        for i in range(self.list2.count()):
+            item = self.list2.item(i)
+            if item.checkState() == Qt.Checked:
+                count2 += 1
+
+        if count1 == count2:
+            self.check2.setChecked(True)
+
+        # if count2 > 1:
+        #     self.statusBar().showMessage(str(count2) + 'objects are checked.')
+        # elif count2 == 1:
+        #     self.statusBar().showMessage(str(count2) + 'object is checked.')
+        # elif count2 == 0:
+        #     self.statusBar().showMessage('No objects are checked.')
 
     bucketListed = Signal(list)
 
