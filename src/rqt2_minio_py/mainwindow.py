@@ -12,6 +12,7 @@ from python_qt_binding.QtWidgets import QFileDialog
 from python_qt_binding.QtWidgets import QFormLayout
 from python_qt_binding.QtWidgets import QGridLayout
 from python_qt_binding.QtWidgets import QGroupBox
+from python_qt_binding.QtWidgets import QHBoxLayout
 from python_qt_binding.QtWidgets import QInputDialog
 from python_qt_binding.QtWidgets import QLabel
 from python_qt_binding.QtWidgets import QLineEdit
@@ -126,6 +127,14 @@ class MainWindow(QMainWindow):
         self.createMenus()
         self.createToolBars()
 
+        self.line1 = QLineEdit()
+        self.line1.setPlaceholderText('Filter Buckets')
+        self.line1.textChanged.connect(self.filterBuckets)
+
+        self.line2 = QLineEdit()
+        self.line2.setPlaceholderText('Start typing to filter objects in the bucket')
+        self.line2.textChanged.connect(self.filterObjects)
+
         self.list1 = QListWidget()
         # self.list1.setSelectionMode(QAbstractItemView.ContiguousSelection)
         self.list1.currentTextChanged.connect(self.listObjects)
@@ -137,19 +146,29 @@ class MainWindow(QMainWindow):
         self.list2.setContextMenuPolicy(Qt.CustomContextMenu)
         self.list2.customContextMenuRequested.connect(self.contextMenu2)
 
-        layout1 = QVBoxLayout()
-        layout1.addWidget(self.list1)
-        # layout1.addStretch()
+        layout1 = QHBoxLayout()
+        layout1.addWidget(self.line1)
+        layout1.addWidget(self.bucketToolBar)
 
         layout2 = QVBoxLayout()
-        layout2.addWidget(self.list2)
+        layout2.addLayout(layout1)
+        layout2.addWidget(self.list1)
         # layout2.addStretch()
 
+        layout3 = QHBoxLayout()
+        layout3.addWidget(self.line2)
+        layout3.addWidget(self.objectToolBar)
+
+        layout4 = QVBoxLayout()
+        layout4.addLayout(layout3)
+        layout4.addWidget(self.list2)
+        # layout4.addStretch()
+
         self.group1 = QGroupBox('Buckets')
-        self.group1.setLayout(layout1)   
+        self.group1.setLayout(layout2)   
 
         self.group2 = QGroupBox('Objects')
-        self.group2.setLayout(layout2)
+        self.group2.setLayout(layout4)
 
         layout = QVBoxLayout()
         layout.addWidget(self.group1)
@@ -237,16 +256,22 @@ class MainWindow(QMainWindow):
         fileToolBar.addAction(self.actionCred)
         fileToolBar.addSeparator()
 
-        fileToolBar.addAction(self.actionPut)
-        fileToolBar.addAction(self.actionTagging)
-        fileToolBar.addAction(self.actionGet)
-        fileToolBar.addSeparator()
-
-        fileToolBar.addAction(self.actionDelete2)
-        fileToolBar.addSeparator()
-
         fileToolBar.setAllowedAreas(Qt.TopToolBarArea | Qt.BottomToolBarArea)
         self.addToolBar(Qt.TopToolBarArea, fileToolBar)
+
+        self.bucketToolBar = self.addToolBar('Bucket')
+        self.bucketToolBar.addAction(self.actionCreate)
+        self.bucketToolBar.addAction(self.actionDelete1)
+        self.bucketToolBar.addSeparator()
+
+        self.objectToolBar = self.addToolBar('Object')
+        self.objectToolBar.addAction(self.actionPut)
+        self.objectToolBar.addAction(self.actionTagging)
+        self.objectToolBar.addAction(self.actionGet)
+        self.objectToolBar.addSeparator()
+
+        self.objectToolBar.addAction(self.actionDelete2)
+        self.objectToolBar.addSeparator()
 
     def createCred(self):
         dialog = MyDialog(self)
@@ -412,17 +437,31 @@ class MainWindow(QMainWindow):
         if item:
             bucket_name = item.text()
 
+            # response = self.s3_client.list_objects_v2(Bucket=bucket_name, MaxKeys=1000)
+            # self.list2.clear()
+            # object_names = []
+            # for object_name in response['Contents']:
+            #     item = QListWidgetItem()
+            #     item.setText(object_name['Key'])
+            #     item.setCheckState(Qt.Unchecked)
+            #     self.list2.addItem(item)
+            #     self.list2.setCurrentItem(item)
+            #     object_names.append(object_name['Key'])
+            #     print(object_name['Key'])
+            # self.objectListed.emit(object_names)
+
             resource = self.s3_resource.Bucket(bucket_name)
             self.list2.clear()
             object_names = []
             for summary in resource.objects.all():
+                object_name = summary.key
                 item = QListWidgetItem()
-                item.setText(summary.key)
+                item.setText(object_name)
                 item.setCheckState(Qt.Unchecked)
                 self.list2.addItem(item)
                 self.list2.setCurrentItem(item)
-                object_names.append(summary.key)
-                print(summary.key)
+                object_names.append(object_name)
+                print(object_name)
             self.objectListed.emit(object_names)
 
     def checkAllObjects(self):
@@ -459,49 +498,90 @@ class MainWindow(QMainWindow):
         print('bucket info')
     
     def showObjectInfo(self):
-        bucket_name = self.list1.currentItem().text()
-        object_name = self.list2.currentItem().text()
+        item1 = self.list1.currentItem()
+        item2 = self.list2.currentItem()
+        if item1 and item2:
+            bucket_name = item1.text()
+            object_name = item2.text()
 
-        response = self.s3_client.head_object(Bucket=bucket_name, Key=object_name)
-        response2 = self.s3_client.get_object_tagging(Bucket=bucket_name, Key=object_name)
+            response = self.s3_client.head_object(Bucket=bucket_name, Key=object_name)
+            response2 = self.s3_client.get_object_tagging(Bucket=bucket_name, Key=object_name)
 
-        text1 = str(response['ContentLength'])
-        text2 = response['ContentType']
-        text3 = response['ETag']
-        text4 = response['LastModified'].strftime('%Y/%m/%d %H:%M:%S.%f')
+            text1 = str(response['ContentLength'])
+            text2 = response['ContentType']
+            text3 = response['ETag']
+            text4 = response['LastModified'].strftime('%Y/%m/%d %H:%M:%S.%f')
 
-        dialog = MyDialog2(self)
-        item1 = QTreeWidgetItem()
-        item1.setText(0, 'ContentLength [bytes]')
-        item1.setText(1, text1)
-        dialog.tree.addTopLevelItem(item1)
+            dialog = MyDialog2(self)
+            item1 = QTreeWidgetItem()
+            item1.setText(0, 'ContentLength [bytes]')
+            item1.setText(1, text1)
+            dialog.tree.addTopLevelItem(item1)
 
-        item2 = QTreeWidgetItem()
-        item2.setText(0, 'ContentType')
-        item2.setText(1, text2)
-        dialog.tree.addTopLevelItem(item2)
+            item2 = QTreeWidgetItem()
+            item2.setText(0, 'ContentType')
+            item2.setText(1, text2)
+            dialog.tree.addTopLevelItem(item2)
 
-        item3 = QTreeWidgetItem()
-        item3.setText(0, 'ETag')
-        item3.setText(1, text3)
-        dialog.tree.addTopLevelItem(item3)
+            item3 = QTreeWidgetItem()
+            item3.setText(0, 'ETag')
+            item3.setText(1, text3)
+            dialog.tree.addTopLevelItem(item3)
 
-        item4 = QTreeWidgetItem()
-        item4.setText(0, 'LastModified')
-        item4.setText(1, text4)
-        dialog.tree.addTopLevelItem(item4)
+            item4 = QTreeWidgetItem()
+            item4.setText(0, 'LastModified')
+            item4.setText(1, text4)
+            dialog.tree.addTopLevelItem(item4)
 
-        tagset = response2['TagSet']
-        for tag in tagset:
-            key = tag['Key']
-            value = tag['Value']
-            item = QTreeWidgetItem()
-            item.setText(0, 'Key:' + key)
-            item.setText(1, value)
-            dialog.tree.addTopLevelItem(item)
+            tagset = response2['TagSet']
+            for tag in tagset:
+                key = tag['Key']
+                value = tag['Value']
+                item = QTreeWidgetItem()
+                item.setText(0, 'Key:' + key)
+                item.setText(1, value)
+                dialog.tree.addTopLevelItem(item)
 
-        if dialog.exec_():
-            print('Close the info dialog')
+            if dialog.exec_():
+                print('Close the info dialog')
+
+    def filterBuckets(self, text):
+        self.listBuckets()
+        if text:
+            bucket_names = []
+            for i in range(self.list1.count()):
+                item = self.list1.item(i)
+                bucket_name = item.text()
+                if text in bucket_name:
+                    bucket_names.append(bucket_name)
+            
+            self.list1.clear()
+            for bucket_name in bucket_names:
+                item = QListWidgetItem()
+                item.setText(bucket_name)
+                item.setCheckState(Qt.Unchecked)
+                self.list1.addItem(item)
+                self.list1.setCurrentItem(item)
+            print('Filtered buckets:', bucket_names)
+
+    def filterObjects(self, text):
+        self.listObjects()
+        if text:
+            object_names = []
+            for i in range(self.list2.count()):
+                item = self.list2.item(i)
+                object_name = item.text()
+                if text in object_name:
+                    object_names.append(object_name)
+
+            self.list2.clear()
+            for object_name in object_names:
+                item = QListWidgetItem()
+                item.setText(object_name)
+                item.setCheckState(Qt.Unchecked)
+                self.list2.addItem(item)
+                self.list2.setCurrentItem(item)
+            print('Filtered objects:', object_names)
 
     bucketListed = Signal(list)
 
