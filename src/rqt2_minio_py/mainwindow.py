@@ -413,32 +413,34 @@ class MainWindow(QMainWindow):
         if item:
             bucket_name = item.text()
 
-            # response = self.s3_client.list_objects_v2(Bucket=bucket_name, MaxKeys=1000)
+            response = self.s3_client.list_objects_v2(Bucket=bucket_name, MaxKeys=1000)
+
+            self.list2.clear()
+            if response.get('Contents') is not None:
+                object_names = []
+                for object_name in response['Contents']:
+                    item = QListWidgetItem()
+                    item.setText(object_name['Key'])
+                    item.setCheckState(Qt.Unchecked)
+                    self.list2.addItem(item)
+                    self.list2.setCurrentItem(item)
+                    object_names.append(object_name['Key'])
+                    print(object_name['Key'])
+                self.objectListed.emit(object_names)
+
+            # resource = self.s3_resource.Bucket(bucket_name)
             # self.list2.clear()
             # object_names = []
-            # for object_name in response['Contents']:
+            # for summary in resource.objects.all():
+            #     object_name = summary.key
             #     item = QListWidgetItem()
-            #     item.setText(object_name['Key'])
+            #     item.setText(object_name)
             #     item.setCheckState(Qt.Unchecked)
             #     self.list2.addItem(item)
             #     self.list2.setCurrentItem(item)
-            #     object_names.append(object_name['Key'])
-            #     print(object_name['Key'])
+            #     object_names.append(object_name)
+            #     print(object_name)
             # self.objectListed.emit(object_names)
-
-            resource = self.s3_resource.Bucket(bucket_name)
-            self.list2.clear()
-            object_names = []
-            for summary in resource.objects.all():
-                object_name = summary.key
-                item = QListWidgetItem()
-                item.setText(object_name)
-                item.setCheckState(Qt.Unchecked)
-                self.list2.addItem(item)
-                self.list2.setCurrentItem(item)
-                object_names.append(object_name)
-                print(object_name)
-            self.objectListed.emit(object_names)
 
     def checkAllObjects(self, checked):
         for i in range(self.list2.count()):
@@ -559,7 +561,7 @@ class MainWindow(QMainWindow):
 
     def checkBucket(self, item):
         if item.checkState() == Qt.Checked:
-            print(item.text(), 'is checked.')
+            print(item.text(), 'has been checked.')
         elif item.checkState() == Qt.Unchecked:
             self.check1.blockSignals(True)
             self.check1.setChecked(False)
@@ -576,15 +578,15 @@ class MainWindow(QMainWindow):
             self.check1.setChecked(True)
 
         # if count2 > 1:
-        #     self.statusBar().showMessage(str(count2) + 'buckets are checked.')
+        #     self.statusBar().showMessage(str(count2) + 'buckets have been checked.')
         # elif count2 == 1:
-        #     self.statusBar().showMessage(str(count2) + 'bucket is checked.')
+        #     self.statusBar().showMessage(str(count2) + 'bucket has been checked.')
         # elif count2 == 0:
-        #     self.statusBar().showMessage('No buckets are checked.')
+        #     self.statusBar().showMessage('No buckets have been checked.')
 
     def checkObject(self, item):
         if item.checkState() == Qt.Checked:
-            print(item.text(), 'is checked.')
+            print(item.text(), 'has been checked.')
         elif item.checkState() == Qt.Unchecked:
             self.check2.blockSignals(True)
             self.check2.setChecked(False)
@@ -601,11 +603,11 @@ class MainWindow(QMainWindow):
             self.check2.setChecked(True)
 
         # if count2 > 1:
-        #     self.statusBar().showMessage(str(count2) + 'objects are checked.')
+        #     self.statusBar().showMessage(str(count2) + 'objects have been checked.')
         # elif count2 == 1:
-        #     self.statusBar().showMessage(str(count2) + 'object is checked.')
+        #     self.statusBar().showMessage(str(count2) + 'object has been checked.')
         # elif count2 == 0:
-        #     self.statusBar().showMessage('No objects are checked.')
+        #     self.statusBar().showMessage('No objects have been checked.')
 
     bucketListed = Signal(list)
 
