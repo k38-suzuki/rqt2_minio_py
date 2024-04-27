@@ -13,7 +13,6 @@ from python_qt_binding.QtWidgets import QFileDialog
 from python_qt_binding.QtWidgets import QFormLayout
 from python_qt_binding.QtWidgets import QGridLayout
 from python_qt_binding.QtWidgets import QGroupBox
-from python_qt_binding.QtWidgets import QHBoxLayout
 from python_qt_binding.QtWidgets import QInputDialog
 from python_qt_binding.QtWidgets import QLabel
 from python_qt_binding.QtWidgets import QLineEdit
@@ -97,9 +96,9 @@ class MyDialog3(QDialog):
         for i in range(10):
             line1 = QLineEdit()
             line2 = QLineEdit()
-            gridLayout.addWidget(QLabel("Key" + str(i)), i, 0)
+            gridLayout.addWidget(QLabel('Key' + str(i)), i, 0)
             gridLayout.addWidget(line1, i, 1)
-            gridLayout.addWidget(QLabel("Value" + str(i)), i, 2)
+            gridLayout.addWidget(QLabel('Value' + str(i)), i, 2)
             gridLayout.addWidget(line2, i, 3)
             self.lines1.append(line1)
             self.lines2.append(line2)
@@ -128,20 +127,6 @@ class MainWindow(QMainWindow):
         self.createMenus()
         self.createToolBars()
 
-        self.check1 = QCheckBox()
-        self.check1.toggled.connect(self.checkAllBuckets)
-
-        self.check2 = QCheckBox()
-        self.check2.toggled.connect(self.checkAllObjects)
-
-        self.line1 = QLineEdit()
-        self.line1.setPlaceholderText('Filter Buckets')
-        self.line1.textChanged.connect(self.filterBuckets)
-
-        self.line2 = QLineEdit()
-        self.line2.setPlaceholderText('Start typing to filter objects in the bucket')
-        self.line2.textChanged.connect(self.filterObjects)
-
         self.list1 = QListWidget()
         # self.list1.setSelectionMode(QAbstractItemView.ContiguousSelection)
         self.list1.currentTextChanged.connect(self.listObjects)
@@ -155,31 +140,21 @@ class MainWindow(QMainWindow):
         self.list2.itemClicked.connect(self.checkObject)
         self.list2.customContextMenuRequested.connect(self.contextMenu2)
 
-        layout1 = QHBoxLayout()
-        layout1.addWidget(self.check1)
-        layout1.addWidget(self.line1)
+        layout1 = QVBoxLayout()
         layout1.addWidget(self.bucketToolBar)
+        layout1.addWidget(self.list1)
+        # layout1.addStretch()
 
         layout2 = QVBoxLayout()
-        layout2.addLayout(layout1)
-        layout2.addWidget(self.list1)
+        layout2.addWidget(self.objectToolBar)
+        layout2.addWidget(self.list2)
         # layout2.addStretch()
 
-        layout3 = QHBoxLayout()
-        layout3.addWidget(self.check2)
-        layout3.addWidget(self.line2)
-        layout3.addWidget(self.objectToolBar)
-
-        layout4 = QVBoxLayout()
-        layout4.addLayout(layout3)
-        layout4.addWidget(self.list2)
-        # layout4.addStretch()
-
         self.group1 = QGroupBox('Buckets')
-        self.group1.setLayout(layout2)   
+        self.group1.setLayout(layout1)   
 
         self.group2 = QGroupBox('Objects')
-        self.group2.setLayout(layout4)
+        self.group2.setLayout(layout2)
 
         layout = QVBoxLayout()
         layout.addWidget(self.group1)
@@ -244,12 +219,30 @@ class MainWindow(QMainWindow):
         fileToolBar.setAllowedAreas(Qt.TopToolBarArea | Qt.BottomToolBarArea)
         self.addToolBar(Qt.TopToolBarArea, fileToolBar)
 
-        self.bucketToolBar = self.addToolBar('Bucket')
+        self.check1 = QCheckBox()
+        self.check1.toggled.connect(self.checkAllBuckets)
+
+        self.check2 = QCheckBox()
+        self.check2.toggled.connect(self.checkAllObjects)
+
+        self.line1 = QLineEdit()
+        self.line1.setPlaceholderText('Filter Buckets')
+        self.line1.textChanged.connect(self.filterBuckets)
+
+        self.line2 = QLineEdit()
+        self.line2.setPlaceholderText('Start typing to filter objects in the bucket')
+        self.line2.textChanged.connect(self.filterObjects)
+
+        self.bucketToolBar = self.addToolBar("Bucket")
+        self.bucketToolBar.addWidget(self.check1)
+        self.bucketToolBar.addWidget(self.line1)
         self.bucketToolBar.addAction(self.actionCreate)
         self.bucketToolBar.addAction(self.actionDelete1)
         self.bucketToolBar.addSeparator()
 
-        self.objectToolBar = self.addToolBar('Object')
+        self.objectToolBar = self.addToolBar("Object")
+        self.objectToolBar.addWidget(self.check2)
+        self.objectToolBar.addWidget(self.line2)
         self.objectToolBar.addAction(self.actionPut)
         self.objectToolBar.addAction(self.actionTagging)
         self.objectToolBar.addAction(self.actionGet)
@@ -390,7 +383,7 @@ class MainWindow(QMainWindow):
                     object_name = item2.text()
 
                     response = self.s3_client.delete_object(Bucket=bucket_name, Key=object_name)
-                    print('Object:', object_name, 'has been deleted from', bucket_name, ".")
+                    print('Object:', object_name, 'has been deleted from', bucket_name, '.')
                     self.listObjects()
 
     def getObject(self):
